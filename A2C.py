@@ -149,7 +149,8 @@ if __name__ == "__main__":
     writer = SummaryWriter('runs/'+env_name+"_"+model_name+"_"+exp_num)
 
     # set parameters
-    learning_rate = 0.0001
+    actor_lr = 1e-4
+    critic_lr = 1e-3
     episodes = 5000
     print_per_iter = 100
     max_step = 20000
@@ -166,8 +167,8 @@ if __name__ == "__main__":
     
 
     # Set Optimizer
-    critic_optimizer = optim.Adam(critic.parameters(), lr=learning_rate)
-    actor_optimizer = optim.Adam(actor.parameters(), lr=learning_rate)
+    critic_optimizer = optim.Adam(critic.parameters(), lr=critic_lr)
+    actor_optimizer = optim.Adam(actor.parameters(), lr=actor_lr)
 
     for epi in range(episodes):
         s = env.reset()
@@ -191,7 +192,7 @@ if __name__ == "__main__":
             train(actor, critic, 
                   critic_optimizer, actor_optimizer, 
                   discount_rate,
-                  r/10, a_prob[a], s, s_prime, done,
+                  r/100, a_prob[a], s, s_prime, done,
                   device)
 
             
@@ -205,5 +206,5 @@ if __name__ == "__main__":
         writer.add_scalar('Rewards per epi', score, epi)
         save_model(actor, model_name+"_"+".pth")
 
-        writer.close()
-        env.close()
+    writer.close()
+    env.close()

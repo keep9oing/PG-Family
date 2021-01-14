@@ -2,8 +2,8 @@
 Basic PG Reinforcement algorithms
 
 ### TODO
-- [ ] REINFORCE
-- [ ] Actor-Critic
+- [x] REINFORCE
+- [x] Actor-Critic
 - [ ] A2C(Adavantage Actor Critic)
 
 Steps for MARL
