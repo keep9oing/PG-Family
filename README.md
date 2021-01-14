@@ -1,7 +1,7 @@
 # PG-Family
 Basic PG Reinforcement algorithms
 
-TODO
+### TODO
 - [ ] REINFORCE
 - [ ] Actor-Critic
 - [ ] A2C(Adavantage Actor Critic)
