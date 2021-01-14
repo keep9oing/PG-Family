@@ -10,17 +10,52 @@ from torch.utils.tensorboard import SummaryWriter
 
 import numpy as np
 import random
+# import os
 
+# os.environ['CUDA_LAUNCH_BLOCKING'] = "1" 
 
+# Critic Network
+class Critic(nn.Module):
+    def __init__(self, state_space=None,
+                       num_hidden_layer=2,
+                       hidden_dim=None):
 
-# REINFROCE Network
-class REINFORCE(nn.Module):
+        super(Critic, self).__init__()
+
+        # space size check
+        assert state_space is not None, "None state_space input: state_space should be assigned."
+        
+        if hidden_dim is None:
+            hidden_dim = state_space * 2
+
+        self.layers = nn.ModuleList()
+
+        # Add input layer
+        self.layers.append(nn.Linear(state_space, hidden_dim))
+
+        # Add hidden layers
+        for i in range(num_hidden_layer):
+            self.layers.append(nn.Linear(hidden_dim, hidden_dim))
+
+        self.layers.append(nn.Linear(hidden_dim, 1))
+
+    def forward(self, x):
+
+        for layer in self.layers[:-1]:
+            x = F.relu(layer(x))
+
+        out = self.layers[-1](x)
+
+        return out
+
+# Actor Network
+class Actor(nn.Module):
     def __init__(self, state_space=None,
                        action_space=None,
                        num_hidden_layer=2,
                        hidden_dim=None):
 
-        super(REINFORCE, self).__init__()
+        super(Actor, self).__init__()
 
         # space size check
         assert state_space is not None, "None state_space input: state_space should be assigned."
@@ -50,17 +85,38 @@ class REINFORCE(nn.Module):
 
         return out
 
-def train(model, roll_out, optimizer, gamma, device):
-    G = 0
-
-    optimizer.zero_grad()
-
-    for r, prob in roll_out[::-1]:
-        G = r + gamma * G
-        loss = -torch.log(prob) * G
-        loss.to(device).backward()
-    optimizer.step()
+def train(actor, critic, 
+          critic_optimizer, actor_optimizer,
+          gamma,
+          r, prob, s, s_prime, done,
+          device):
     
+    s_prime = torch.from_numpy(s_prime).float().to(device)
+    s = torch.from_numpy(s).float().to(device)
+    
+    if done:
+        done = 0
+    else:
+        done = 1
+
+    v_s = critic(s)
+    v_prime = critic(s_prime)
+
+    Q = r+gamma*v_prime.detach()*done # value target
+    A =  Q - v_s                      # Advantage
+
+    # Update Critic
+    critic_optimizer.zero_grad()
+    critic_loss = F.mse_loss(v_s, Q.detach())
+    critic_loss.backward()
+    critic_optimizer.step()
+
+    # Update Actor
+    actor_optimizer.zero_grad()
+    actor_loss = -A.detach() * torch.log(prob)
+    actor_loss.backward()
+    actor_optimizer.step()
+
 def seed_torch(seed):
         torch.manual_seed(seed)
         if torch.backends.cudnn.enabled:
@@ -73,7 +129,7 @@ def save_model(model, path='default.pth'):
 if __name__ == "__main__":
 
     # Determine seeds
-    model_name = "REINFORCE"
+    model_name = "Actor-Critic"
     env_name = "CartPole-v1"
     seed = 1
     exp_num = 'SEED_'+str(seed)
@@ -99,51 +155,55 @@ if __name__ == "__main__":
     max_step = 20000
     discount_rate = 0.99
 
-    Policy = REINFORCE(state_space=env.observation_space.shape[0],
-                       action_space=env.action_space.n,
-                       num_hidden_layer=2,
-                       hidden_dim=64).to(device)
+    critic = Critic(state_space=env.observation_space.shape[0],
+                    num_hidden_layer=2,
+                    hidden_dim=64).to(device)
     
+    actor = Actor(state_space=env.observation_space.shape[0],
+                  action_space=env.action_space.n,
+                  num_hidden_layer=2,
+                  hidden_dim=64).to(device)
     
 
     # Set Optimizer
-    optimizer = optim.SGD(Policy.parameters(), lr=learning_rate)
+    critic_optimizer = optim.Adam(critic.parameters(), lr=learning_rate)
+    actor_optimizer = optim.Adam(actor.parameters(), lr=learning_rate)
 
     for epi in range(episodes):
         s = env.reset()
         done = False
 
-        roll_out = []
-        step = 0
-
-        # Set score
         score = 0
 
+        step = 0
         while (not done) and (step < max_step):
             # if epi%print_per_iter == 0:
             #     env.render()
 
             # Get action
-            a_prob = Policy(torch.from_numpy(s).float().to(device))
+            a_prob = actor(torch.from_numpy(s).float().to(device))
             a_distrib = Categorical(a_prob)
             a = a_distrib.sample()
 
             # Interaction with Environment
             s_prime, r, done, _ = env.step(a.item())
 
-            roll_out.append((r, a_prob[a]))
+            train(actor, critic, 
+                  critic_optimizer, actor_optimizer, 
+                  discount_rate,
+                  r/10, a_prob[a], s, s_prime, done,
+                  device)
 
+            
             s = s_prime
             score += r
             step += 1
-        
-        
-        train(Policy, roll_out, optimizer, discount_rate, device)
+
 
         # Logging
         print("epsiode :{}, score :{}".format(epi, score))
         writer.add_scalar('Rewards per epi', score, epi)
-        save_model(Policy, model_name+"_"+".pth")
+        save_model(actor, model_name+"_"+".pth")
 
-    writer.close()
-    env.close()
+        writer.close()
+        env.close()
