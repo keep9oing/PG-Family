@@ -5,14 +5,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
-
 from torch.utils.tensorboard import SummaryWriter
 
 import numpy as np
 import random
-# import os
 
-# os.environ['CUDA_LAUNCH_BLOCKING'] = "1" 
 
 # Critic Network
 class Critic(nn.Module):
@@ -125,7 +122,8 @@ def train(actor, critic,
     actor_optimizer.zero_grad()
     actor_loss = 0
     for idx, prob in enumerate(prob_buf):
-        actor_loss += -A[idx].detach() * torch.log(prob) 
+        actor_loss += -A[idx].detach() * torch.log(prob)
+    actor_loss /= len(prob_buf) 
     actor_loss.backward()
     actor_optimizer.step()
 
