@@ -4,6 +4,6 @@ Basic PG Reinforcement algorithms
 ### TODO
 - [x] REINFORCE
 - [x] A2C(Adavantage Actor Critic), one-setp, batch-update
-- [x] A3C
+- [x] A3C, Entropy
 
 Steps for MARL

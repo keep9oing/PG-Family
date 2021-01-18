@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
     # Determine seeds
     model_name = "Actor-Critic"
-    env_name = "CartPole-v1"
+    env_name = "LunarLander-v2"
     seed = 1
     exp_num = 'SEED_'+str(seed)
 

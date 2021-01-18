@@ -171,7 +171,9 @@ def train(global_Actor, global_Critic, device, rank):
                     actor_optimizer.zero_grad()
                     actor_loss = 0
                     for idx, prob in enumerate(prob_buf):
-                        actor_loss += -A[idx].detach() * torch.log(prob)
+                        log_prob = torch.log(prob)
+                        entropy = -(log_prob * prob)
+                        actor_loss += -A[idx].detach() * torch.log(prob) - beta *entropy
                     actor_loss /= len(prob_buf) 
                     actor_loss.backward()
 
@@ -247,13 +249,14 @@ exp_num = 'SEED_'+str(seed)
 print_interval = 10
 
 # Global parameters
-actor_lr = 1e-4
+actor_lr = 1e-3
 critic_lr = 1e-3
 episodes = 10000
 print_per_iter = 100
 max_step = 20000
 discount_rate = 0.99
 batch_size = 5
+beta = 0.001 # Entropy ratio
 
 hidden_layer_num = 2
 hidden_dim_size = 128
